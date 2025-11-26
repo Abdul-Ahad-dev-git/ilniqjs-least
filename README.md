@@ -1,4 +1,4 @@
-# 🚀 @ilniq/least v3.0
+# 🚀 @ilniqjs/least v3.0
 
 Ultra‑optimized, production‑ready React framework for state management, HTTP, caching, forms, and performance utilities — built with **zero dependencies**, **100% TypeScript**, and ** reliability**.
 
@@ -22,7 +22,7 @@ Ultra‑optimized, production‑ready React framework for state management, HTTP
 ## 📦 Installation
 
 ```bash
-npm install @ilniq/least
+npm install @ilniqjs/least
 ```
 
 Peer dependency:
@@ -38,7 +38,7 @@ npm install react react-dom
 ### 1. Create a Store
 
 ```ts
-import { createStore, useStore } from '@ilniq/least';
+import { createStore, useStore } from '@ilniqjs/least';
 
 const counterStore = createStore({
   initialState: { count: 0 },
@@ -86,7 +86,7 @@ store.destroy();
 ### Async‑Safe Batching
 
 ```ts
-import { batch, batchAsync } from '@ilniq/least';
+import { batch, batchAsync } from '@ilniqjs/least';
 
 batch(() => {
   store.setState({ a: 1 });
@@ -106,7 +106,7 @@ await batchAsync(async () => {
 ## 💾 Persisted Stores
 
 ```ts
-import { createPersistedStore } from '@ilniq/least';
+import { createPersistedStore } from '@ilniqjs/least';
 
 const settingsStore = createPersistedStore(
   { initialState: { theme: 'light' } },
@@ -124,7 +124,7 @@ const settingsStore = createPersistedStore(
 ## 🌐 HTTP Client
 
 ```ts
-import { createHttpClient } from '@ilniq/least';
+import { createHttpClient } from '@ilniqjs/least';
 
 const http = createHttpClient({
   baseURL: 'https://api.example.com',
@@ -148,7 +148,7 @@ const { data } = await http.get('/users');
 ## 🗃️ Caching (LRU + TTL)
 
 ```ts
-import { createCache } from '@ilniq/least';
+import { createCache } from '@ilniqjs/least';
 
 const cache = createCache({
   maxSize: 5 * 1024 * 1024,
@@ -172,7 +172,7 @@ cache.getStats();
 ### Create Control
 
 ```ts
-import { createFormControl, Validators } from '@ilniq/least';
+import { createFormControl, Validators } from '@ilniqjs/least';
 
 const email = createFormControl('', [
   Validators.required(),
@@ -183,7 +183,7 @@ const email = createFormControl('', [
 ### Use in Component
 
 ```tsx
-import { useFormControl } from '@ilniq/least';
+import { useFormControl } from '@ilniqjs/least';
 
 function EmailInput() {
   const { value, setValue, error, touched, markTouched } = useFormControl(email);
@@ -200,7 +200,7 @@ function EmailInput() {
 ### Form Groups
 
 ```ts
-import { createFormGroup } from '@ilniq/least';
+import { createFormGroup } from '@ilniqjs/least';
 
 const form = createFormGroup({
   email,

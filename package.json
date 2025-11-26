@@ -1,5 +1,5 @@
 {
-  "name": "@ilniq/least",
+  "name": "@ilniqjs/least",
   "version": "1.0.0",
   "description": "Ultra-optimized, production-hardened React framework",
   "main": "dist/index.js",
