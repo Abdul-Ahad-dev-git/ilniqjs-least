@@ -1,0 +1,19 @@
+# Exclude tests, coverage, and local configs
+src/__tests__/
+coverage/
+benchmarks/
+tsconfig.json
+tsconfig.tsbuildinfo
+jest.config.cjs
+*.sh
+pnpm-workspace.yaml
+
+# IDE/OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Keep only build output and README
+!dist/
+!README.md
