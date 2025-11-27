@@ -1,5 +1,5 @@
-const { createStore } = require('../dist/index.js');
-const { batch } = require('../dist/index.js');
+import { createStore } from '../dist/index.esm.js';
+import { batch } from '../dist/index.esm.js';
 
 console.log('🚀 Performance Benchmarks\n');
 

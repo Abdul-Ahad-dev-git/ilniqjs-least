@@ -1,6 +1,11 @@
 type Validator<T = any> = (value: T) => string | null | Promise<string | null>;
 type ValidationMode = 'change' | 'blur' | 'submit';
-
+type Listener = () => void;
+type Widen<T> =
+  T extends string ? string :
+  T extends number ? number :
+  T extends boolean ? boolean :
+  T;
 export interface FormControl<T = any> {
   readonly value: T;
   readonly error: string | null;
@@ -14,55 +19,77 @@ export interface FormControl<T = any> {
   markDirty(): void;
   validate(): Promise<void>;
   reset(value?: T): void;
+  subscribe(listener: Listener): () => void;
   destroy(): void;
 }
 
 export function createFormControl<T = any>(
   initialValue: T,
-  validators: Validator<T>[] = [],
+  validators: Validator<Widen<T>>[] = [],
   mode: ValidationMode = 'blur'
-): FormControl<T> {
-  let value = initialValue;
+): FormControl<Widen<T>> {
+  let value = initialValue as Widen<T>;
   let error: string | null = null;
   let touched = false;
   let dirty = false;
   let validating = false;
   let isDestroyed = false;
-  let validateTimeout: any;
-  let validationPromise: Promise<void> | null = null;
+  let validateTimeout: ReturnType<typeof setTimeout> | null = null;
+  let currentValidationId = 0;
+  
+  const listeners = new Set<Listener>();
 
-  async function runValidation(val: T): Promise<string | null> {
-    if (isDestroyed) return null;
+  function notify() {
+    if (isDestroyed) return;
+    listeners.forEach(listener => {
+      try {
+        listener();
+      } catch (err) {
+        console.error('[FormControl] Listener error:', err);
+      }
+    });
+  }
+
+  async function runValidation(val: Widen<T>, validationId: number): Promise<string | null> {
+    if (isDestroyed || validationId !== currentValidationId) return null;
 
     for (const validator of validators) {
       try {
         const err = await validator(val);
-        if (err && !isDestroyed) {
-          return err;
-        }
+        if (isDestroyed || validationId !== currentValidationId) return null;
+        if (err) return err;
       } catch (err) {
-        if (!isDestroyed) {
-          console.error('[FormControl] Validator error:', err);
-          return 'Validation error';
-        }
+        if (isDestroyed || validationId !== currentValidationId) return null;
+        console.error('[FormControl] Validator error:', err);
+        return 'Validation error';
       }
     }
     return null;
   }
 
   async function validateImmediate(): Promise<void> {
-    if (isDestroyed) return;
+    if (isDestroyed || validators.length === 0) return;
 
+    const validationId = ++currentValidationId;
     validating = true;
+    notify();
+
     try {
-      const err = await runValidation(value);
-      if (!isDestroyed) {
-        error = err;
-      }
+      const err = await runValidation(value, validationId);
+      if (isDestroyed || validationId !== currentValidationId) return;
+      error = err;
     } finally {
-      if (!isDestroyed) {
+      if (!isDestroyed && validationId === currentValidationId) {
         validating = false;
+        notify();
       }
+    }
+  }
+
+  function clearValidateTimeout() {
+    if (validateTimeout !== null) {
+      clearTimeout(validateTimeout);
+      validateTimeout = null;
     }
   }
 
@@ -91,18 +118,23 @@ export function createFormControl<T = any>(
       return !error && !validating;
     },
 
-    setValue(val: T) {
-      if (isDestroyed) return;
+    setValue(val: Widen<T>) {
+      if (isDestroyed) {
+        console.warn('[FormControl] Cannot setValue on destroyed control');
+        return;
+      }
 
       const changed = !Object.is(value, val);
       value = val;
-
+      
       if (changed) {
         dirty = true;
+        notify();
 
         if (mode === 'change') {
-          clearTimeout(validateTimeout);
+          clearValidateTimeout();
           validateTimeout = setTimeout(() => {
+            validateTimeout = null;
             if (!isDestroyed) {
               validateImmediate();
             }
@@ -112,15 +144,24 @@ export function createFormControl<T = any>(
     },
 
     setError(err: string | null) {
-      if (!isDestroyed) {
-        error = err;
+      if (isDestroyed) {
+        console.warn('[FormControl] Cannot setError on destroyed control');
+        return;
       }
+      error = err;
+      notify();
     },
 
     markTouched() {
-      if (isDestroyed) return;
+      if (isDestroyed) {
+        console.warn('[FormControl] Cannot markTouched on destroyed control');
+        return;
+      }
 
-      touched = true;
+      if (!touched) {
+        touched = true;
+        notify();
+      }
 
       if (mode === 'blur') {
         validateImmediate();
@@ -128,43 +169,56 @@ export function createFormControl<T = any>(
     },
 
     markDirty() {
-      if (!isDestroyed) {
+      if (isDestroyed) {
+        console.warn('[FormControl] Cannot markDirty on destroyed control');
+        return;
+      }
+      if (!dirty) {
         dirty = true;
+        notify();
       }
     },
 
     async validate(): Promise<void> {
       if (isDestroyed) return;
-
-      // Reuse existing validation promise if running
-      if (validationPromise) {
-        return validationPromise;
-      }
-
-      validationPromise = validateImmediate().finally(() => {
-        validationPromise = null;
-      });
-
-      return validationPromise;
+      await validateImmediate();
     },
 
-    reset(newValue?: T) {
-      if (isDestroyed) return;
+    reset(newValue?:Widen<T>) {
+      if (isDestroyed) {
+        console.warn('[FormControl] Cannot reset destroyed control');
+        return;
+      }
 
-      clearTimeout(validateTimeout);
-      value = newValue !== undefined ? newValue : initialValue;
+      clearValidateTimeout();
+      currentValidationId++;
+      value = newValue !== undefined ? newValue : (initialValue as Widen<T>);
       error = null;
       touched = false;
       dirty = false;
       validating = false;
+      notify();
+    },
+
+    subscribe(listener: Listener) {
+      if (isDestroyed) {
+        console.warn('[FormControl] Cannot subscribe to destroyed control');
+        return () => {};
+      }
+
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
     },
 
     destroy() {
       if (isDestroyed) return;
 
       isDestroyed = true;
-      clearTimeout(validateTimeout);
-      validationPromise = null;
+      clearValidateTimeout();
+      currentValidationId++;
+      listeners.clear();
     }
   };
 }

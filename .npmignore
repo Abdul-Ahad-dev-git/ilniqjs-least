@@ -1,7 +1,6 @@
 # Exclude tests, coverage, and local configs
 src/__tests__/
 coverage/
-benchmarks/
 tsconfig.json
 tsconfig.tsbuildinfo
 jest.config.cjs

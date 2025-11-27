@@ -1,4 +1,4 @@
-# 🚀 @ilniqjs/least v1.0.0
+# 🚀 @ilniqjs/least v1.0.2
 
 Ultra‑optimized, production‑ready React framework for state management, HTTP, caching, forms, and performance utilities — built with **zero dependencies**, **100% TypeScript**, and ** reliability**.
 

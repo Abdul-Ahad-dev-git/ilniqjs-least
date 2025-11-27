@@ -26,13 +26,17 @@ export const Validators = {
   },
 
   min: (min: number, msg?: string): ValidatorFn => (val: number) => {
-    if (val === null || val === undefined) return null;
-    return val < min ? msg || `Minimum value is ${min}` : null;
+    if (val === null || val === undefined ) return null;
+    const numVal = Number(val);
+    if (isNaN(numVal)) return null;
+    return numVal < min ? msg || `Minimum value is ${min}` : null;
   },
 
   max: (max: number, msg?: string): ValidatorFn => (val: number) => {
-    if (val === null || val === undefined) return null;
-    return val > max ? msg || `Maximum value is ${max}` : null;
+    if (val === null || val === undefined ) return null;
+    const numVal = Number(val);
+    if (isNaN(numVal)) return null;
+    return numVal > max ? msg || `Maximum value is ${max}` : null;
   },
 
   email: (msg = 'Invalid email address'): ValidatorFn => (val: string) => {
@@ -56,10 +60,11 @@ export const Validators = {
     }
   },
 
-  match: (fieldName: string, msg?: string): ValidatorFn => {
-    let otherValue: any;
+  // Fixed match validator - now accepts a getter function
+  match: (getOtherValue: () => any, fieldName: string, msg?: string): ValidatorFn => {
     return (val: any) => {
       if (!val) return null;
+      const otherValue = getOtherValue();
       return val === otherValue
         ? null
         : msg || `Must match ${fieldName}`;
@@ -75,8 +80,37 @@ export const Validators = {
       try {
         const valid = await fn(val);
         return valid ? null : msg;
-      } catch {
+      } catch (err) {
+        console.error('[Validators.async] Validation error:', err);
         return 'Validation failed';
       }
-    }
+    },
+
+  // Additional useful validators
+  requiredTrue: (msg = 'Must be checked'): ValidatorFn => (val: any) => {
+    return val === true ? null : msg;
+  },
+
+  numeric: (msg = 'Must be a number'): ValidatorFn => (val: any) => {
+    if (val === null || val === undefined || val === '') return null;
+    return isNaN(Number(val)) ? msg : null;
+  },
+
+  integer: (msg = 'Must be an integer'): ValidatorFn => (val: any) => {
+    if (val === null || val === undefined || val === '') return null;
+    const num = Number(val);
+    return !isNaN(num) && Number.isInteger(num) ? null : msg;
+  },
+
+  alphanumeric: (msg = 'Must contain only letters and numbers'): ValidatorFn => (val: string) => {
+    if (!val) return null;
+    return /^[a-zA-Z0-9]+$/.test(val) ? null : msg;
+  },
+
+  phone: (msg = 'Invalid phone number'): ValidatorFn => (val: string) => {
+    if (!val) return null;
+    // Basic phone validation - adjust regex as needed
+    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+    return phoneRegex.test(val) && val.replace(/\D/g, '').length >= 10 ? null : msg;
+  }
 };

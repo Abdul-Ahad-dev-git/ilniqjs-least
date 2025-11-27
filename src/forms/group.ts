@@ -1,5 +1,7 @@
 import type { FormControl } from './control';
 
+type Listener = () => void;
+
 export interface FormGroup {
   controls: Record<string, FormControl>;
   getValue(): Record<string, any>;
@@ -8,8 +10,11 @@ export interface FormGroup {
   isValid(): boolean;
   isTouched(): boolean;
   isDirty(): boolean;
+  isValidating(): boolean;
   validate(): Promise<void>;
+  markAllTouched(): void;
   reset(values?: Record<string, any>): void;
+  subscribe(listener: Listener): () => void;
   destroy(): void;
 }
 
@@ -17,6 +22,25 @@ export function createFormGroup(
   controls: Record<string, FormControl>
 ): FormGroup {
   let isDestroyed = false;
+  const listeners = new Set<Listener>();
+  const unsubscribers: Array<() => void> = [];
+
+  function notify() {
+    if (isDestroyed) return;
+    listeners.forEach(listener => {
+      try {
+        listener();
+      } catch (err) {
+        console.error('[FormGroup] Listener error:', err);
+      }
+    });
+  }
+
+  // Subscribe to all control changes
+  Object.values(controls).forEach(control => {
+    const unsub = control.subscribe(() => notify());
+    unsubscribers.push(unsub);
+  });
 
   return {
     controls,
@@ -30,7 +54,10 @@ export function createFormGroup(
     },
 
     setValue(values: Record<string, any>) {
-      if (isDestroyed) return;
+      if (isDestroyed) {
+        console.warn('[FormGroup] Cannot setValue on destroyed group');
+        return;
+      }
 
       Object.entries(values).forEach(([key, val]) => {
         if (controls[key]) {
@@ -48,7 +75,7 @@ export function createFormGroup(
     },
 
     isValid() {
-      return Object.values(controls).every(ctrl => ctrl.valid);
+      return Object.values(controls).every(ctrl => ctrl.valid && !ctrl.validating);
     },
 
     isTouched() {
@@ -59,6 +86,10 @@ export function createFormGroup(
       return Object.values(controls).some(ctrl => ctrl.dirty);
     },
 
+    isValidating() {
+      return Object.values(controls).some(ctrl => ctrl.validating);
+    },
+
     async validate() {
       if (isDestroyed) return;
 
@@ -67,8 +98,20 @@ export function createFormGroup(
       );
     },
 
+    markAllTouched() {
+      if (isDestroyed) {
+        console.warn('[FormGroup] Cannot markAllTouched on destroyed group');
+        return;
+      }
+
+      Object.values(controls).forEach(ctrl => ctrl.markTouched());
+    },
+
     reset(values?: Record<string, any>) {
-      if (isDestroyed) return;
+      if (isDestroyed) {
+        console.warn('[FormGroup] Cannot reset destroyed group');
+        return;
+      }
 
       Object.entries(controls).forEach(([key, ctrl]) => {
         const newValue = values?.[key];
@@ -76,11 +119,26 @@ export function createFormGroup(
       });
     },
 
+    subscribe(listener: Listener) {
+      if (isDestroyed) {
+        console.warn('[FormGroup] Cannot subscribe to destroyed group');
+        return () => {};
+      }
+
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+
     destroy() {
       if (isDestroyed) return;
 
       isDestroyed = true;
-      Object.values(controls).forEach(ctrl => ctrl.destroy());
+      unsubscribers.forEach(unsub => unsub());
+      listeners.clear();
+      
+      // Note: We don't destroy child controls - that's the caller's responsibility
     }
   };
 }

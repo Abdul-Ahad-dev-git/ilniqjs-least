@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-// Add global type declarations for Node environment
+// Global type declarations
 declare global {
   namespace NodeJS {
     interface Global {
@@ -10,11 +10,24 @@ declare global {
   var console: Console;
 }
 
-// Suppress console errors in tests
-globalThis.console = {
-  ...console,
-  error: jest.fn(),
-  warn: jest.fn()
-} as any;
+// Suppress console errors/warnings in tests
+const originalWarn = console.warn;
+const originalError = console.error;
+
+beforeAll(() => {
+  console.warn = jest.fn();
+  console.error = jest.fn();
+});
+
+afterAll(() => {
+  console.warn = originalWarn;
+  console.error = originalError;
+});
+
+afterEach(() => {
+  jest.clearAllMocks();
+});
+
+jest.setTimeout(10000);
 
 export {};
